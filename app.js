@@ -3,11 +3,35 @@ const Song = require("./models/song");
 var cors = require('cors')
 const app = express();
 app.use(cors())
+const bodyParser = require("body-parser");
+const jwt = require("jwt-simple");
+const User = require("./models/users");
 // Middleware that parses HTTP requests with JSON body
 app.use(express.json());
 
 const router = express.Router();
+const secret = "supersecret";
 
+//creating a new user
+router.post("/users", async (req, res) => {
+   if (!req.body.username || !req.body.password) {
+      res.status(400).json({ message: "Missing username or password" });
+   }
+   
+   const newUser = new User({
+      username: req.body.username,
+      password: req.body.password,
+      status: req.body.status
+   });
+   try {
+      await newUser.save();
+      res.status(201).json(newUser);
+   }
+   catch(err){
+console.log(err);
+res.status(500).json({ error: "err.message" });
+   }
+})
 // Get list of all songs in the database
 router.get("/songs", async (req, res) => {
    try {
@@ -62,6 +86,19 @@ catch (err) {
         res.status(400).send(err);
 
 }
+})
+router.delete("/songs/:id", async (req, res) => {
+   try {
+      const result = await Song.deleteOne({ _id: req.params.id});
+      console.log("Delete result:", result);
+   if (result.deletedCount === 0) {
+      res.status(404).json({ message: "Song not found"});
+   }
+   res.status(200).json({ message: "Song deleted successfully"});
+}catch (err) {
+   console.error(err);
+    res.status(400).json({error: err.message});
+   }
 })
 
 app.use("/api", router);
