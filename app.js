@@ -14,8 +14,11 @@ const secret = "supersecret";
 
 //creating a new user
 router.post("/users", async (req, res) => {
-   if (!req.body.username || !req.body.password) {
-      res.status(400).json({ message: "Missing username or password" });
+   try {
+      
+   
+      if (!req.body.username || !req.body.password) {
+      return res.status(400).json({ message: "Missing username or password" });
    }
    
    const newUser = new User({
@@ -23,7 +26,7 @@ router.post("/users", async (req, res) => {
       password: req.body.password,
       status: req.body.status
    });
-   try {
+   
       await newUser.save();
       res.status(201).json(newUser);
    }
@@ -31,7 +34,70 @@ router.post("/users", async (req, res) => {
 console.log(err);
 res.status(500).json({ error: "err.message" });
    }
-})
+});
+
+//authenticate or login
+//post request - reason why is because when you login you are creating what we call a ew 'session'
+router.post("/auth", async(req, res) => {
+   try {
+      const {username, password} = req.body;
+   
+      if (!username || !password) {
+         res.status(400).json({ error: "Missing username or password" });
+        
+      }
+      
+      
+      //try to find user in database, then see if it matches with a username and password
+      //await finding a user
+      const foundUser = await User.findOne({ username })
+      
+         //connection or server error
+         if (!foundUser) {
+            return res.status(401).json({ error: "Bad Username" });
+            
+         }
+         
+         //check to see if the users password matches the requests password
+         
+             if (foundUser.password !== password) {
+               return res.status(401).json({ error: "Bad Password" });
+             }
+             
+               //create a token that is encoded with the jwt library, and send back th username
+             
+             const token = jwt.encode({ username: foundUser.username }, secret);
+             
+             res.json({ 
+               username: foundUser.username,
+                token, 
+               auth:1,
+         });  
+       } catch (err) {
+      console.log(err);
+      res.status(500).json({ error: "Server error" });
+            }
+   });
+   router.get("/status", async (req, res) => {
+  // Check for x-auth header
+  if (!req.headers["x-auth"]) {
+    return res.status(401).json({ error: "Missing x-Auth" });
+  }
+
+  // If header exists, respond with success
+  const token = req.headers["x-auth"]
+  try{
+   const decoded = jwt.decode(token, secret)
+  
+  const users = await User.find({}, "username status")
+  res.json(users)
+  }
+  catch(ex) {
+   console.error(ex);
+  res.status(401).json({error: "invalid jwt"});
+}
+});
+
 // Get list of all songs in the database
 router.get("/songs", async (req, res) => {
    try {
